@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observability Control Center - Day 13 Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.6);
+            --card-border: rgba(255, 255, 255, 0.05);
+            --accent-green: #10b981;
+            --accent-green-glow: rgba(16, 185, 129, 0.2);
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+            padding: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .brand-section h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-section p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .status-header-badges {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .badge {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+        }
+
+        .badge-live {
+            background-color: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1.1); opacity: 0.5; box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* 3-Column Layout: Main Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(16px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .card-value-container {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .card-unit {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .card-status {
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .status-ok { color: var(--accent-green); }
+        .status-warn { color: var(--accent-yellow); }
+        .status-error { color: var(--accent-red); }
+
+        .progress-bar-container {
+            background-color: rgba(255, 255, 255, 0.05);
+            height: 6px;
+            border-radius: 3px;
+            width: 100%;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Incident Controller Board */
+        .control-panel {
+            grid-column: span 3;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(17, 24, 39, 0.4));
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .control-item {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-info h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .control-info p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Switch toggle CSS */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .3s;
+            border-radius: 24px;
+            border: 1px solid var(--card-border);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-red);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Sparkline canvas styling */
+        .chart-container {
+            height: 100px;
+            margin-top: 0.75rem;
+        }
+
+        /* Toast notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast {
+            background-color: #1f2937;
+            border: 1px solid var(--card-border);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: var(--text-main);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-info { border-left: 4px solid var(--accent-blue); }
+        .toast-warn { border-left: 4px solid var(--accent-yellow); }
+        .toast-error { border-left: 4px solid var(--accent-red); }
+        .toast-success { border-left: 4px solid var(--accent-green); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand-section">
+            <h1>Day 13 Observability Control Center</h1>
+            <p>Bảng Giám Sát Hiệu Năng & Sự Cố Hệ Thống (Real-time)</p>
+        </div>
+        <div class="status-header-badges">
+            <div class="badge badge-live">
+                <div class="pulse-dot"></div>
+                <span>LIVE METRICS</span>
+            </div>
+            <div class="badge" id="tracing-badge">
+                <span>Langfuse Tracing: OFF</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+
+        <!-- Panel 1: Latency -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Latency (Độ trễ P95)</span>
+                <span class="card-status" id="latency-status">
+                    <span class="pulse-dot" style="background-color: var(--accent-green); animation: none;"></span> Ok
+                </span>
+            </div>
+            <div class="card-value-container">
+                <span class="card-value" id="val-latency">0</span>
+                <span class="card-unit">ms</span>
+            </div>
+            <div class="card-status" style="font-size: 0.75rem; color: var(--text-muted);">
+                <span>P50: <strong id="val-latency-p50" style="color: var(--text-main)">0ms</strong></span>
+                <span style="margin-left: 1rem;">P99: <strong id="val-latency-p99" style="color: var(--text-main)">0ms</strong></span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="latency-progress" style="width: 0%; background: var(--accent-green);"></div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem; text-align: right;">
+                SLO Threshold: &lt; 3000ms
+            </div>
+        </div>
+
+        <!-- Panel 2: Traffic -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Traffic (Lượng Request)</span>
+                <span class="card-status status-ok">
+                    Active
+                </span>
+            </div>
+            <div class="card-value-container">
+                <span class="card-value" id="val-traffic">0</span>
+                <span class="card-unit">requests</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="trafficChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Panel 3: Error Rate -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Error Rate (Lỗi Hệ Thống)</span>
+                <span class="card-status" id="error-status">
+                    No Errors
+                </span>
+            </div>
+            <div class="card-value-container">
+                <span class="card-value" id="val-errors" style="color: var(--text-main);">0</span>
+                <span class="card-unit">failures</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); min-height: 30px;" id="error-breakdown">
+                No exceptions recorded.
+            </div>
+            <div class="progress-bar-container" style="background-color: rgba(255, 255, 255, 0.02);">
+                <div class="progress-bar" id="error-progress" style="width: 0%; background: var(--accent-red);"></div>
+            </div>
+        </div>
+
+        <!-- Panel 4: Cost over Time -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Cost (Chi Phí LLM)</span>
+                <span class="card-status status-ok" id="cost-status">
+                    Within Budget
+                </span>
+            </div>
+            <div class="card-value-container">
+                <span class="card-value" id="val-cost" style="color: var(--accent-green);">0.0000</span>
+                <span class="card-unit">USD</span>
+            </div>
+            <div class="card-status" style="font-size: 0.75rem; color: var(--text-muted);">
+                <span>Avg/Req: <strong id="val-cost-avg" style="color: var(--text-main)">$0.0000</strong></span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="cost-progress" style="width: 0%; background: var(--accent-green);"></div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem; text-align: right;">
+                SLO Budget: &lt; $2.50 / ngày
+            </div>
+        </div>
+
+        <!-- Panel 5: Token Usage -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Tokens In / Out</span>
+                <span class="card-status status-ok">
+                    Operational
+                </span>
+            </div>
+            <div class="card-value-container">
+                <span class="card-value" id="val-tokens">0</span>
+                <span class="card-unit">total tokens</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span>Input: <strong id="val-tokens-in" style="color: var(--accent-blue)">0</strong></span>
+                <span>Output: <strong id="val-tokens-out" style="color: var(--accent-purple)">0</strong></span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="token-ratio-bar" style="width: 50%;"></div>
+            </div>
+        </div>
+
+        <!-- Panel 6: Quality Proxy -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Quality Proxy (Chất Lượng)</span>
+                <span class="card-status" id="quality-status">
+                    N/A
+                </span>
+            </div>
+            <div class="card-value-container">
+                <span class="card-value" id="val-quality" style="color: var(--accent-blue);">0.00</span>
+                <span class="card-unit">/ 1.0</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span>Target SLO: &gt; 0.75</span>
+            </div>
+            <div class="progress-bar-container" style="background-color: rgba(255, 255, 255, 0.05);">
+                <div class="progress-bar" id="quality-progress" style="width: 0%; background: var(--accent-blue);"></div>
+            </div>
+        </div>
+
+        <!-- Incident Controller Panel -->
+        <div class="card control-panel">
+            <div class="card-header">
+                <span class="card-title" style="color: var(--text-main); font-weight: 700;">Incident Control Board (Bảng Điều Khiển Sự Cố)</span>
+                <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: var(--accent-red);">
+                    DEBUGGER MODE ACTIVE
+                </span>
+            </div>
+            <div class="control-grid">
+                
+                <!-- Toggle 1: rag_slow -->
+                <div class="control-item">
+                    <div class="control-info">
+                        <h4>rag_slow</h4>
+                        <p>Simulates retrieval delay (+2.5s)</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-rag_slow" onchange="toggleIncident('rag_slow')">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Toggle 2: tool_fail -->
+                <div class="control-item">
+                    <div class="control-info">
+                        <h4>tool_fail</h4>
+                        <p>Simulates database/tool timeout error</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-tool_fail" onchange="toggleIncident('tool_fail')">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Toggle 3: cost_spike -->
+                <div class="control-item">
+                    <div class="control-info">
+                        <h4>cost_spike</h4>
+                        <p>Simulates LLM output token explosion (x4)</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-cost_spike" onchange="toggleIncident('cost_spike')">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Alert Rules Panel -->
+        <div class="card control-panel" style="margin-top: 0.5rem; background: linear-gradient(135deg, rgba(17, 24, 39, 0.4), rgba(30, 41, 59, 0.4));">
+            <div class="card-header">
+                <span class="card-title" style="color: var(--text-main); font-weight: 700;">Alerting Rules & Runbooks (Cấu Hình Cảnh Báo & Hướng Dẫn Xử Lý)</span>
+                <span class="badge" style="color: var(--accent-yellow); border-color: rgba(245, 158, 11, 0.2); background-color: rgba(245, 158, 11, 0.1);">
+                    ACTIVE MONITORING
+                </span>
+            </div>
+            <div class="control-grid" id="alert-rules-list">
+                <!-- Alert rules will be rendered dynamically here -->
+            </div>
+        </div>
+
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        // Init Traffic Chart
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        const trafficData = {
+            labels: [],
+            datasets: [{
+                label: 'Requests',
+                data: [],
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        };
+        const trafficChart = new Chart(ctx, {
+            type: 'line',
+            data: trafficData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } }
+                    }
+                }
+            }
+        });
+
+        // Show Toast Function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 50);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Fetch Metrics & Status
+        async function updateDashboard() {
+            try {
+                // Fetch health/incidents state
+                const healthRes = await fetch('/health');
+                const healthData = await healthRes.json();
+                
+                // Update tracing badge
+                const tracingBadge = document.getElementById('tracing-badge');
+                if (healthData.tracing_enabled) {
+                    tracingBadge.className = 'badge badge-live';
+                    tracingBadge.style.color = '#3b82f6';
+                    tracingBadge.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+                    tracingBadge.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                    tracingBadge.innerHTML = 'Langfuse Tracing: ON';
+                } else {
+                    tracingBadge.className = 'badge';
+                    tracingBadge.style.color = 'var(--text-muted)';
+                    tracingBadge.style.borderColor = 'var(--card-border)';
+                    tracingBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                    tracingBadge.innerHTML = 'Langfuse Tracing: OFF';
+                }
+
+                // Update switches based on remote state
+                for (const [name, active] of Object.entries(healthData.incidents)) {
+                    const toggle = document.getElementById(`toggle-${name}`);
+                    if (toggle) toggle.checked = active;
+                }
+
+                // Fetch metrics
+                const metricsRes = await fetch('/metrics');
+                const metrics = await metricsRes.json();
+
+                // 1. Update Latency Panel
+                const p95 = metrics.latency_p95 || 0;
+                const p50 = metrics.latency_p50 || 0;
+                const p99 = metrics.latency_p99 || 0;
+                document.getElementById('val-latency').innerText = p95;
+                document.getElementById('val-latency-p50').innerText = p50 + 'ms';
+                document.getElementById('val-latency-p99').innerText = p99 + 'ms';
+                
+                const latencyStatus = document.getElementById('latency-status');
+                const latencyBar = document.getElementById('latency-progress');
+                let latPct = Math.min(100, (p95 / 4000) * 100);
+                latencyBar.style.width = latPct + '%';
+
+                if (p95 === 0) {
+                    latencyStatus.innerHTML = '<span class="pulse-dot" style="background-color: var(--text-muted); animation: none;"></span> No Traffic';
+                    latencyStatus.style.color = 'var(--text-muted)';
+                    latencyBar.style.background = 'var(--text-muted)';
+                } else if (p95 >= 3000) {
+                    latencyStatus.innerHTML = '<span class="pulse-dot" style="background-color: var(--accent-red); animation: pulse 1s infinite;"></span> SLO Breached';
+                    latencyStatus.style.color = 'var(--accent-red)';
+                    latencyBar.style.background = 'var(--accent-red)';
+                } else {
+                    latencyStatus.innerHTML = '<span class="pulse-dot" style="background-color: var(--accent-green); animation: none;"></span> Healthy';
+                    latencyStatus.style.color = 'var(--accent-green)';
+                    latencyBar.style.background = 'var(--accent-green)';
+                }
+
+                // 2. Update Traffic
+                const traffic = metrics.traffic || 0;
+                document.getElementById('val-traffic').innerText = traffic;
+                
+                // Calculate incremental rate (traffic processed in the last 2 seconds)
+                if (typeof window.lastTrafficCount === 'undefined') {
+                    window.lastTrafficCount = traffic;
+                }
+                let incrementalTraffic = traffic - window.lastTrafficCount;
+                if (incrementalTraffic < 0) incrementalTraffic = 0;
+                window.lastTrafficCount = traffic;
+                
+                // Add to chart
+                const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                if (trafficChart.data.labels.length > 15) {
+                    trafficChart.data.labels.shift();
+                    trafficChart.data.datasets[0].data.shift();
+                }
+                trafficChart.data.labels.push(now);
+                trafficChart.data.datasets[0].data.push(incrementalTraffic);
+                trafficChart.update();
+
+                // 3. Update Error Rate
+                const errorsDict = metrics.error_breakdown || {};
+                let totalErrors = 0;
+                let errorHtml = '';
+                for (const [type, count] of Object.entries(errorsDict)) {
+                    totalErrors += count;
+                    errorHtml += `<div>• <strong>${type}</strong>: ${count}</div>`;
+                }
+                document.getElementById('val-errors').innerText = totalErrors;
+                document.getElementById('val-errors').style.color = totalErrors > 0 ? 'var(--accent-red)' : 'var(--text-main)';
+                document.getElementById('error-breakdown').innerHTML = errorHtml || 'No exceptions recorded.';
+                
+                const errorStatus = document.getElementById('error-status');
+                const errorBar = document.getElementById('error-progress');
+                if (totalErrors > 0) {
+                    errorStatus.innerText = 'Critical Errors';
+                    errorStatus.className = 'card-status status-error';
+                    errorBar.style.width = '100%';
+                } else {
+                    errorStatus.innerText = 'Healthy';
+                    errorStatus.className = 'card-status status-ok';
+                    errorBar.style.width = '0%';
+                }
+
+                // 4. Update Cost
+                const totalCost = metrics.total_cost_usd || 0;
+                const avgCost = metrics.avg_cost_usd || 0;
+                document.getElementById('val-cost').innerText = totalCost.toFixed(4);
+                document.getElementById('val-cost-avg').innerText = '$' + avgCost.toFixed(4);
+                
+                const costStatus = document.getElementById('cost-status');
+                const costBar = document.getElementById('cost-progress');
+                let costPct = Math.min(100, (totalCost / 2.5) * 100);
+                costBar.style.width = costPct + '%';
+                
+                if (totalCost > 2.5) {
+                    costStatus.innerText = 'Budget Exceeded';
+                    costStatus.className = 'card-status status-error';
+                    costBar.style.background = 'var(--accent-red)';
+                } else {
+                    costStatus.innerText = 'Within Budget';
+                    costStatus.className = 'card-status status-ok';
+                    costBar.style.background = 'var(--accent-green)';
+                }
+
+                // 5. Tokens
+                const tokensIn = metrics.tokens_in_total || 0;
+                const tokensOut = metrics.tokens_out_total || 0;
+                const totalTokens = tokensIn + tokensOut;
+                document.getElementById('val-tokens').innerText = totalTokens;
+                document.getElementById('val-tokens-in').innerText = tokensIn;
+                document.getElementById('val-tokens-out').innerText = tokensOut;
+                
+                const ratioBar = document.getElementById('token-ratio-bar');
+                if (totalTokens > 0) {
+                    let inPct = (tokensIn / totalTokens) * 100;
+                    ratioBar.style.width = inPct + '%';
+                } else {
+                    ratioBar.style.width = '50%';
+                }
+
+                // 6. Quality
+                const quality = metrics.quality_avg || 0;
+                document.getElementById('val-quality').innerText = quality.toFixed(2);
+                
+                const qualityStatus = document.getElementById('quality-status');
+                const qualityBar = document.getElementById('quality-progress');
+                qualityBar.style.width = (quality * 100) + '%';
+                
+                if (quality === 0) {
+                    qualityStatus.innerText = 'No Data';
+                    qualityStatus.className = 'card-status';
+                    qualityStatus.style.color = 'var(--text-muted)';
+                } else if (quality < 0.75) {
+                    qualityStatus.innerText = 'Below Target';
+                    qualityStatus.className = 'card-status status-warn';
+                    qualityBar.style.background = 'var(--accent-yellow)';
+                } else {
+                    qualityStatus.innerText = 'Excellent';
+                    qualityStatus.className = 'card-status status-ok';
+                    qualityBar.style.background = 'var(--accent-blue)';
+                }
+
+            } catch (err) {
+                console.error("Failed to update dashboard metrics", err);
+            }
+        }
+
+        // Action function: toggle incident state
+        async function toggleIncident(name) {
+            const toggle = document.getElementById(`toggle-${name}`);
+            const action = toggle.checked ? 'enable' : 'disable';
+            try {
+                const res = await fetch(`/incidents/${name}/${action}`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    const statusText = toggle.checked ? 'ENABLED 🔴' : 'DISABLED 🟢';
+                    showToast(`Incident scenario "${name}" has been ${statusText}`, toggle.checked ? 'warn' : 'success');
+                    updateDashboard();
+                } else {
+                    showToast(`Failed to toggle incident: ${data.detail}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Network error toggling incident: ${err.message}`, 'error');
+            }
+        }
+
+        // Load alert rules dynamically
+        async function loadAlertRules() {
+            try {
+                const res = await fetch('/api/alerts');
+                const data = await res.json();
+                const container = document.getElementById('alert-rules-list');
+                container.innerHTML = '';
+                
+                if (data.alerts && data.alerts.length > 0) {
+                    data.alerts.forEach(alert => {
+                        const alertItem = document.createElement('div');
+                        alertItem.className = 'control-item';
+                        alertItem.style.flexDirection = 'column';
+                        alertItem.style.alignItems = 'flex-start';
+                        alertItem.style.gap = '0.75rem';
+                        alertItem.style.padding = '1rem 1.25rem';
+                        
+                        alertItem.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                <h4 style="color: var(--text-main); font-size: 0.95rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    🚨 ${alert.name}
+                                </h4>
+                                <span class="badge" style="padding: 0.25rem 0.6rem; font-size: 0.7rem; border-color: ${alert.severity === 'P1' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}; color: ${alert.severity === 'P1' ? 'var(--accent-red)' : 'var(--accent-yellow)'}; background-color: ${alert.severity === 'P1' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(245, 158, 11, 0.05)'}; margin-left: auto;">
+                                    ${alert.severity}
+                                </span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); width: 100%;">
+                                <strong>Condition:</strong> <code style="background: rgba(0,0,0,0.3); padding: 0.15rem 0.4rem; border-radius: 4px; color: #f43f5e; font-family: monospace;">${alert.condition}</code>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; width: 100%; align-items: center; margin-top: 0.25rem; flex-wrap: wrap; gap: 0.5rem;">
+                                <span>Type: ${alert.type} | Owner: ${alert.owner}</span>
+                                <a href="/${alert.runbook}" target="_blank" style="color: var(--accent-blue); text-decoration: none; font-weight: 500; font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; transition: color 0.2s;">
+                                    📖 View Runbook &rarr;
+                                </a>
+                            </div>
+                        `;
+                        container.appendChild(alertItem);
+                    });
+                } else {
+                    container.innerHTML = '<div style="color: var(--text-muted); padding: 1rem;">No alert rules configured.</div>';
+                }
+            } catch (err) {
+                console.error("Failed to load alert rules", err);
+            }
+        }
+
+        // Auto polling every 2 seconds
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
+        loadAlertRules();
+    </script>
+</body>
+</html>

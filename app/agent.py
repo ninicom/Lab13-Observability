@@ -44,6 +44,21 @@ class LabAgent:
             metadata={"doc_count": len(docs), "query_preview": summarize_text(message)},
             usage_details={"input": response.usage.input_tokens, "output": response.usage.output_tokens},
         )
+        # Send numeric quality score to Langfuse
+        langfuse_context.score(
+            name="quality",
+            value=quality_score,
+            data_type="NUMERIC",
+            comment=f"Heuristic quality score for model {self.model}"
+        )
+        # Send categorical quality level to Langfuse
+        quality_level = "high" if quality_score >= 0.8 else ("medium" if quality_score >= 0.5 else "low")
+        langfuse_context.score(
+            name="quality_level",
+            value=quality_level,
+            data_type="CATEGORICAL",
+            comment="Categorized quality level"
+        )
 
         metrics.record_request(
             latency_ms=latency_ms,
